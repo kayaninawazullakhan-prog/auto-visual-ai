@@ -1,0 +1,122 @@
+/* Aurora background keyframes. Imported only by aurora-background.tsx so we
+   never touch globals.css. GPU-friendly: animates transform/opacity only. */
+
+@keyframes aurora-drift-a {
+  0% {
+    transform: translate3d(-10%, -8%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(12%, 10%, 0) scale(1.25);
+  }
+  100% {
+    transform: translate3d(-10%, -8%, 0) scale(1);
+  }
+}
+
+@keyframes aurora-drift-b {
+  0% {
+    transform: translate3d(8%, 6%, 0) scale(1.1);
+  }
+  50% {
+    transform: translate3d(-14%, -10%, 0) scale(0.9);
+  }
+  100% {
+    transform: translate3d(8%, 6%, 0) scale(1.1);
+  }
+}
+
+@keyframes aurora-drift-c {
+  0% {
+    transform: translate3d(0%, 10%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(10%, -12%, 0) scale(1.3);
+  }
+  100% {
+    transform: translate3d(0%, 10%, 0) scale(1);
+  }
+}
+
+@keyframes aurora-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  will-change: transform, opacity;
+  mix-blend-mode: screen;
+}
+
+.aurora-blob--a {
+  top: -18%;
+  left: -10%;
+  width: 50vw;
+  height: 50vw;
+  background: radial-gradient(
+    circle at center,
+    hsl(262 83% 62% / 0.55),
+    transparent 65%
+  );
+  animation:
+    aurora-drift-a 22s ease-in-out infinite,
+    aurora-pulse 11s ease-in-out infinite;
+}
+
+.aurora-blob--b {
+  top: 5%;
+  right: -15%;
+  width: 45vw;
+  height: 45vw;
+  background: radial-gradient(
+    circle at center,
+    hsl(238 80% 60% / 0.5),
+    transparent 65%
+  );
+  animation:
+    aurora-drift-b 26s ease-in-out infinite,
+    aurora-pulse 13s ease-in-out infinite;
+}
+
+.aurora-blob--c {
+  bottom: -22%;
+  left: 20%;
+  width: 55vw;
+  height: 55vw;
+  background: radial-gradient(
+    circle at center,
+    hsl(280 75% 60% / 0.42),
+    transparent 65%
+  );
+  animation:
+    aurora-drift-c 30s ease-in-out infinite,
+    aurora-pulse 17s ease-in-out infinite;
+}
+
+.aurora-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, hsl(0 0% 100% / 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(0 0% 100% / 0.04) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(
+    ellipse 80% 60% at 50% 0%,
+    black 30%,
+    transparent 75%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob {
+    animation: none !important;
+  }
+}

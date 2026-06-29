@@ -1,0 +1,684 @@
+// ============================================================================
+// AUTO VISUAL AI — Database schema
+// ----------------------------------------------------------------------------
+// PostgreSQL via Prisma. Models map 1:1 to the product spec's table list, with
+// a few support tables (Branding, Job) for branding config and pipeline
+// observability. JSON columns hold variable-shape payloads (word timings,
+// analysis output, quality reports) whose TypeScript shapes live in @ava/types.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// Enums
+// ----------------------------------------------------------------------------
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  BUSINESS
+}
+
+enum ProjectStatus {
+  DRAFT
+  UPLOADING
+  PROCESSING // audio extraction → transcription → analysis
+  GENERATING // images / videos / animations
+  AWAITING_APPROVAL
+  READY_TO_RENDER
+  RENDERING
+  COMPLETED
+  FAILED
+}
+
+/// Fine-grained pipeline stage, mirrors the 16-step flow for UI progress.
+enum ProcessingStage {
+  CREATED
+  UPLOADED
+  AUDIO_EXTRACTED
+  TRANSCRIBED
+  ANALYZED
+  ASSETS_GENERATED
+  TIMELINE_BUILT
+  SUBTITLES_GENERATED
+  APPROVED
+  RENDERED
+  EXPORTED
+}
+
+enum VideoStatus {
+  UPLOADING
+  UPLOADED
+  PROBED
+  AUDIO_EXTRACTED
+  FAILED
+}
+
+enum TranscriptStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+/// Normalized "keyword" rows cover every entity-like detection.
+enum KeywordKind {
+  KEYWORD
+  ENTITY
+  OBJECT
+  LOCATION
+  ACTION
+  EMOTION
+}
+
+enum AssetKind {
+  IMAGE
+  VIDEO
+  ANIMATION
+  MOTION_GRAPHIC
+}
+
+enum AssetProvider {
+  FLUX
+  SDXL
+  OPENAI_IMAGE
+  RUNWAY
+  KLING
+  PIKA
+  REMOTION
+  REPLICATE
+}
+
+enum AssetStatus {
+  QUEUED
+  GENERATING
+  READY
+  FAILED
+  SKIPPED
+}
+
+/// Visual style variants requested per segment.
+enum AssetStyle {
+  PHOTOREALISTIC
+  ULTRA_REALISTIC
+  CINEMATIC
+  DOCUMENTARY
+  COMMERCIAL
+  B_ROLL
+  MOTION_GRAPHICS
+}
+
+enum ApprovalDecision {
+  PENDING
+  APPROVED
+  REJECTED
+  REGENERATE
+  EDIT_PROMPT
+  SKIPPED
+}
+
+enum TimelineTrack {
+  VISUAL_TOP // AI visuals (top section)
+  FACECAM // creator video (bottom section)
+  SUBTITLE // animated captions overlay
+  AUDIO // original audio bed
+}
+
+enum TimelineItemType {
+  FACECAM
+  IMAGE
+  VIDEO
+  ANIMATION
+  CAPTION
+  AUDIO
+}
+
+enum CaptionStyle {
+  WORD_LEVEL
+  KARAOKE
+  TIKTOK
+  REELS
+  SHORTS
+  HORMOZI
+}
+
+enum CaptionAnimation {
+  POP
+  ZOOM
+  BOUNCE
+  FADE
+  SLIDE
+  SCALE
+  GLOW
+}
+
+enum Language {
+  EN
+  HI
+  UR
+  AR
+  ES
+  FR
+  DE
+  PT
+}
+
+/// Caption language strategy. Default keeps the original spoken audio and shows
+/// English subtitles.
+enum SubtitleMode {
+  ENGLISH // English captions only (default)
+  ORIGINAL // captions in the original spoken language
+  DUAL // English + original stacked
+}
+
+enum RenderStatus {
+  QUEUED
+  RENDERING
+  COMPOSITING
+  VALIDATING
+  DONE
+  FAILED
+}
+
+enum RenderEngine {
+  REMOTION
+  FFMPEG
+}
+
+enum ExportPreset {
+  VERTICAL_HD // 1080x1920
+  VERTICAL_4K // 2160x3840
+  HORIZONTAL_4K // 3840x2160
+  SQUARE // 1080x1080
+}
+
+enum ExportFormat {
+  MP4
+  MOV
+}
+
+enum ExportCodec {
+  H264
+  H265
+  AV1
+}
+
+enum BillingStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+  INCOMPLETE
+}
+
+enum JobType {
+  EXTRACT_AUDIO
+  TRANSCRIBE
+  ANALYZE
+  GENERATE_ASSETS
+  BUILD_TIMELINE
+  SUBTITLES
+  RENDER
+  QUALITY_CHECK
+  EXPORT
+}
+
+enum JobStatus {
+  QUEUED
+  ACTIVE
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
+// ----------------------------------------------------------------------------
+// Core: User & Billing
+// ----------------------------------------------------------------------------
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  name      String?
+  imageUrl  String?
+  plan      Plan     @default(FREE)
+  credits   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects  Project[]
+  billing   Billing?
+  approvals Approval[]
+
+  @@index([clerkId])
+  @@map("users")
+}
+
+model Billing {
+  id                   String        @id @default(cuid())
+  userId               String        @unique
+  stripeCustomerId     String?       @unique
+  stripeSubscriptionId String?       @unique
+  plan                 Plan          @default(FREE)
+  status               BillingStatus @default(ACTIVE)
+  creditsRemaining     Int           @default(0)
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean       @default(false)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([stripeCustomerId])
+  @@map("billing")
+}
+
+// ----------------------------------------------------------------------------
+// Project & source Video
+// ----------------------------------------------------------------------------
+
+model Project {
+  id          String          @id @default(cuid())
+  userId      String
+  title       String          @default("Untitled project")
+  description String?
+  status      ProjectStatus   @default(DRAFT)
+  stage       ProcessingStage @default(CREATED)
+  /// Caption language strategy (default: original audio + English subtitles).
+  subtitleMode SubtitleMode   @default(ENGLISH)
+  error       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video         Video?
+  transcript    Transcript?
+  branding      Branding?
+  topics        Topic[]
+  keywords      Keyword[]
+  assets        GeneratedAsset[]
+  approvals     Approval[]
+  timelineItems TimelineItem[]
+  subtitles     Subtitle[]
+  renders       Render[]
+  exports       Export[]
+  jobs          Job[]
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@map("projects")
+}
+
+model Video {
+  id               String      @id @default(cuid())
+  projectId        String      @unique
+  originalFilename String
+  mimeType         String
+  sizeBytes        BigInt
+  durationSec      Float?
+  width            Int?
+  height           Int?
+  fps              Float?
+  videoCodec       String?
+  audioCodec       String?
+  bitrate          Int?
+  s3KeyOriginal    String
+  s3KeyAudio       String?
+  status           VideoStatus @default(UPLOADING)
+  /// Raw ffprobe output and any extra metadata. See @ava/types ProbeMetadata.
+  metadata         Json?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("videos")
+}
+
+// ----------------------------------------------------------------------------
+// Transcription
+// ----------------------------------------------------------------------------
+
+model Transcript {
+  id        String           @id @default(cuid())
+  projectId String           @unique
+  language  Language         @default(EN)
+  /// Raw detected language code from Whisper (e.g. "te", "hi").
+  detectedLanguage String?
+  provider  String           @default("whisper")
+  fullText  String           @default("")
+  status    TranscriptStatus @default(PENDING)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  project  Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  segments TranscriptSegment[]
+
+  @@map("transcripts")
+}
+
+model TranscriptSegment {
+  id           String   @id @default(cuid())
+  transcriptId String
+  index        Int
+  text         String
+  /// English translation of `text` (== text when the audio is already English).
+  /// Drives all AI understanding + the default English captions.
+  textEn       String?
+  startSec     Float
+  endSec       Float
+  /// Word-level timings: [{ word, start, end, confidence }]. See @ava/types Word.
+  words        Json
+  // --- AI understanding output (populated by the analyze stage) ---
+  topic        String?
+  intent       String?
+  context      String?
+  /// Detected emotions: [{ label, score }]. See @ava/types EmotionTag.
+  emotions     Json?
+  /// Visual ideas feeding the generation engine: see @ava/types VisualIdea[].
+  visualIdeas  Json?
+  analyzedAt   DateTime?
+  createdAt    DateTime @default(now())
+
+  transcript Transcript       @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
+  topics     Topic[]
+  keywords   Keyword[]
+  assets     GeneratedAsset[]
+  approvals  Approval[]
+  timeline   TimelineItem[]
+  subtitles  Subtitle[]
+
+  @@unique([transcriptId, index])
+  @@index([transcriptId])
+  @@map("transcript_segments")
+}
+
+// ----------------------------------------------------------------------------
+// AI understanding: Topics & Keywords
+// ----------------------------------------------------------------------------
+
+model Topic {
+  id         String   @id @default(cuid())
+  projectId  String
+  segmentId  String?
+  name       String
+  confidence Float    @default(0)
+  createdAt  DateTime @default(now())
+
+  project Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  segment TranscriptSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([segmentId])
+  @@map("topics")
+}
+
+model Keyword {
+  id         String      @id @default(cuid())
+  projectId  String
+  segmentId  String?
+  text       String
+  kind       KeywordKind @default(KEYWORD)
+  confidence Float       @default(0)
+  /// Optional word-level placement for exact visual sync.
+  startSec   Float?
+  endSec     Float?
+  createdAt  DateTime    @default(now())
+
+  project Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  segment TranscriptSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, kind])
+  @@index([segmentId])
+  @@map("keywords")
+}
+
+// ----------------------------------------------------------------------------
+// Generated assets (images / videos / animations)
+// ----------------------------------------------------------------------------
+
+model GeneratedAsset {
+  id            String        @id @default(cuid())
+  projectId     String
+  segmentId     String?
+  kind          AssetKind
+  provider      AssetProvider
+  style         AssetStyle?
+  /// Which option this is among the N generated for the segment (0-based).
+  optionIndex   Int           @default(0)
+  prompt        String
+  status        AssetStatus   @default(QUEUED)
+  confidence    Float         @default(0)
+  s3Key         String?
+  thumbnailS3Key String?
+  width         Int?
+  height        Int?
+  durationSec   Float?
+  /// Provider request id, seed, raw response, cost, etc. See @ava/types AssetMeta.
+  meta          Json?
+  error         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  project   Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  segment   TranscriptSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  approvals Approval[]
+  timeline  TimelineItem[]
+
+  @@index([projectId, kind])
+  @@index([segmentId])
+  @@index([status])
+  @@map("generated_assets")
+}
+
+// ----------------------------------------------------------------------------
+// Approval workflow
+// ----------------------------------------------------------------------------
+
+model Approval {
+  id           String           @id @default(cuid())
+  projectId    String
+  segmentId    String?
+  assetId      String?
+  decision     ApprovalDecision @default(PENDING)
+  note         String?
+  /// Replacement prompt supplied with an EDIT_PROMPT decision.
+  editedPrompt String?
+  decidedById  String?
+  decidedAt    DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  project   Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  segment   TranscriptSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  asset     GeneratedAsset?    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  decidedBy User?              @relation(fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([projectId, decision])
+  @@index([assetId])
+  @@map("approvals")
+}
+
+// ----------------------------------------------------------------------------
+// Timeline
+// ----------------------------------------------------------------------------
+
+model TimelineItem {
+  id         String           @id @default(cuid())
+  projectId  String
+  segmentId  String?
+  assetId    String?
+  track      TimelineTrack
+  type       TimelineItemType
+  startSec   Float
+  endSec     Float
+  order      Int              @default(0)
+  /// Enter/exit transitions, ken-burns, crop rect, etc. See @ava/types TimelineMeta.
+  transition Json?
+  meta       Json?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  project Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  segment TranscriptSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  asset   GeneratedAsset?    @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, track, startSec])
+  @@map("timeline_items")
+}
+
+// ----------------------------------------------------------------------------
+// Subtitles / captions
+// ----------------------------------------------------------------------------
+
+model Subtitle {
+  id        String           @id @default(cuid())
+  projectId String
+  segmentId String?
+  language  Language         @default(EN)
+  style     CaptionStyle     @default(KARAOKE)
+  animation CaptionAnimation @default(POP)
+  text      String
+  startSec  Float
+  endSec    Float
+  /// Per-word timing + highlight flags + emoji. See @ava/types CaptionWord[].
+  words     Json
+  /// Font, colors, line-breaks, position overrides. See @ava/types SubtitleMeta.
+  meta      Json?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  project Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  segment TranscriptSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, language])
+  @@map("subtitles")
+}
+
+// ----------------------------------------------------------------------------
+// Branding
+// ----------------------------------------------------------------------------
+
+model Branding {
+  id            String   @id @default(cuid())
+  projectId     String   @unique
+  logoS3Key     String?
+  watermarkS3Key String?
+  username      String?
+  website       String?
+  socialHandle  String?
+  /// Brand palette: { primary, secondary, accent, ... }. See @ava/types BrandColors.
+  brandColors   Json?
+  fontFamily    String?
+  fontS3Key     String?
+  /// Logo/watermark placement & opacity. See @ava/types BrandPlacement.
+  placement     Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("branding")
+}
+
+// ----------------------------------------------------------------------------
+// Render & Export
+// ----------------------------------------------------------------------------
+
+model Render {
+  id            String       @id @default(cuid())
+  projectId     String
+  engine        RenderEngine @default(REMOTION)
+  status        RenderStatus @default(QUEUED)
+  progress      Float        @default(0)
+  qualityScore  Float?
+  /// Per-check QC breakdown. See @ava/types QualityReport.
+  qualityReport Json?
+  s3KeyOutput   String?
+  durationSec   Float?
+  width         Int?
+  height        Int?
+  fps           Float?
+  codec         String?
+  bitrate       Int?
+  error         String?
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  project Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  exports Export[]
+
+  @@index([projectId, status])
+  @@map("renders")
+}
+
+model Export {
+  id          String       @id @default(cuid())
+  projectId   String
+  renderId    String
+  preset      ExportPreset
+  format      ExportFormat @default(MP4)
+  codec       ExportCodec  @default(H264)
+  width       Int
+  height      Int
+  fps         Float        @default(30)
+  bitrate     Int?
+  s3Key       String?
+  sizeBytes   BigInt?
+  downloadUrl String?
+  expiresAt   DateTime?
+  createdAt   DateTime     @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  render  Render  @relation(fields: [renderId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([renderId])
+  @@map("exports")
+}
+
+// ----------------------------------------------------------------------------
+// Pipeline observability
+// ----------------------------------------------------------------------------
+
+/// Key/value app settings (API keys + provider selectors) editable from the UI
+/// Settings page. Overlaid onto process.env at runtime so changes apply live.
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+model Job {
+  id         String    @id @default(cuid())
+  projectId  String
+  type       JobType
+  status     JobStatus @default(QUEUED)
+  progress   Float     @default(0)
+  attempts   Int       @default(0)
+  /// BullMQ job id for cross-referencing the queue.
+  bullJobId  String?
+  error      String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, type])
+  @@index([status])
+  @@map("jobs")
+}

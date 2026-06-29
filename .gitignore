@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.next/
+out/
+build/
+.turbo/
+*.tsbuildinfo
+
+# Env (NEVER commit real keys)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Local data — uploads, generated assets, renders, whisper.cpp models
+.data/
+
+# Local tooling / editor config
+.claude/
+
+# Prisma
+packages/db/prisma/migrations/dev.db*
+
+# Remotion / render artifacts
+out/
+.remotion/
+tmp/
+*.mp4
+*.mov
+*.wav
+*.mp3
+!**/fixtures/**
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Coverage
+coverage/

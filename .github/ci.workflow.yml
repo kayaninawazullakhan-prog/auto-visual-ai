@@ -1,0 +1,81 @@
+# ============================================================================
+# AUTO VISUAL AI — Continuous Integration
+# ----------------------------------------------------------------------------
+# Runs on every push and pull request. Installs with the frozen lockfile,
+# generates the Prisma client (required before typecheck/build can resolve
+# @prisma/client types), then runs the typecheck and build gates across the
+# whole Turborepo.
+#
+# No real infrastructure is touched: DATABASE_URL / REDIS_URL are dummy values
+# that only need to satisfy @ava/config's zod URL validation at build time
+# (Next.js evaluates env during `next build`). Nothing connects to them.
+# ============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Lint · Typecheck · Build
+    runs-on: ubuntu-latest
+
+    env:
+      # Dummy values — must be valid URLs to pass config validation, but are
+      # never connected to. Real secrets are injected by the deploy pipeline.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
+      REDIS_URL: redis://localhost:6379
+      # Keep Next.js telemetry out of CI logs.
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Corepack/pnpm via the official action (pnpm 9 to match packageManager).
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      # Node 20 with built-in pnpm dependency caching keyed on the lockfile.
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      # Explicit pnpm store cache (belt-and-suspenders alongside setup-node's
+      # cache) — keyed on the lockfile hash, restored across runs.
+      - name: Get pnpm store path
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Prisma client must exist before typecheck/build resolve @prisma/client.
+      - name: Generate Prisma client
+        run: pnpm --filter @ava/db db:generate
+
+      - name: Typecheck
+        run: pnpm -r typecheck
+
+      - name: Build
+        run: pnpm build

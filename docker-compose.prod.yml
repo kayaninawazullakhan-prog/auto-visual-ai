@@ -1,0 +1,109 @@
+# ============================================================================
+# AUTO VISUAL AI — Production-style Compose
+# ----------------------------------------------------------------------------
+# Single-host production topology: web + worker built from the repo Dockerfiles,
+# backed by Postgres and Redis. Intended for self-hosted / VPS deploys and as a
+# faithful local mirror of prod. The managed-cloud reference (RDS / ElastiCache
+# / ECS Fargate / S3 / CloudFront) is documented in DEPLOYMENT.md.
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Configuration comes entirely from `.env` (see .env.example). At minimum set
+# DATABASE_URL and REDIS_URL to point at the postgres/redis services below, e.g.
+#   DATABASE_URL=postgresql://ava:ava@postgres:5432/auto_visual_ai?schema=public
+#   REDIS_URL=redis://redis:6379
+# (note the service hostnames `postgres` / `redis`, not localhost).
+#
+# Migrations are NOT run automatically. After the stack is up, apply the schema:
+#   docker compose -f docker-compose.prod.yml run --rm web \
+#     pnpm --filter @ava/db db:deploy
+# ============================================================================
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    image: ava-web:latest
+    container_name: ava-web
+    restart: always
+    env_file: .env
+    environment:
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # Hits the app's /api/health route (returns 200 with feature flags).
+      test:
+        ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    image: ava-worker:latest
+    container_name: ava-worker
+    restart: always
+    env_file: .env
+    environment:
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Liveness: confirm the BullMQ worker process is running.
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'src/index.ts' > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: ava-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ava}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ava}
+      POSTGRES_DB: ${POSTGRES_DB:-auto_visual_ai}
+    # Not published to the host by default in prod — only the app services need
+    # it on the internal network. Uncomment to expose for debugging.
+    # ports:
+    #   - "5432:5432"
+    volumes:
+      - ava-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ava} -d ${POSTGRES_DB:-auto_visual_ai}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: ava-redis
+    restart: always
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ava-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+volumes:
+  ava-postgres-data:
+  ava-redis-data:

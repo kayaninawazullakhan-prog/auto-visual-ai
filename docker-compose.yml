@@ -1,0 +1,57 @@
+# Local development services for AUTO VISUAL AI.
+# Production uses managed equivalents (RDS / ElastiCache / S3) — see Phase 9.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ava-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ava
+      POSTGRES_PASSWORD: ava
+      POSTGRES_DB: auto_visual_ai
+    ports:
+      - "5432:5432"
+    volumes:
+      - ava-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ava -d auto_visual_ai"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: ava-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - ava-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Optional local S3 — uncomment to develop storage without AWS.
+  # Set S3_ENDPOINT=http://localhost:9000 in .env to use it.
+  # minio:
+  #   image: minio/minio:latest
+  #   container_name: ava-minio
+  #   restart: unless-stopped
+  #   command: server /data --console-address ":9001"
+  #   environment:
+  #     MINIO_ROOT_USER: ava
+  #     MINIO_ROOT_PASSWORD: ava-secret
+  #   ports:
+  #     - "9000:9000"
+  #     - "9001:9001"
+  #   volumes:
+  #     - ava-minio-data:/data
+
+volumes:
+  ava-postgres-data:
+  ava-redis-data:
+  # ava-minio-data:

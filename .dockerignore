@@ -1,0 +1,39 @@
+# Keep build contexts small and reproducible: never copy host artifacts or
+# secrets into an image. Dependencies are installed fresh from the lockfile,
+# and build outputs are produced inside the build stages.
+
+# Dependencies (reinstalled in-image from pnpm-lock.yaml)
+node_modules
+**/node_modules
+
+# Build outputs
+.next
+**/.next
+dist
+**/dist
+out
+**/out
+.turbo
+**/.turbo
+*.tsbuildinfo
+
+# VCS
+.git
+.gitignore
+
+# Secrets / local env (injected at runtime via env_file / Secrets Manager)
+.env
+.env.*
+!.env.example
+
+# Logs & temp
+*.log
+tmp
+**/tmp
+
+# Local-only / editor / OS cruft
+.github
+docker-compose*.yml
+.DS_Store
+.idea
+.vscode
