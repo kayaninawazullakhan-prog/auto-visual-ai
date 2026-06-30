@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AUTO VISUAL AI — AI video editing platform</title>
+<meta name="description" content="A production AI SaaS that turns a talking-head video into a professionally edited, word-synced 9:16 short — automatically. Multilingual, single-key, local-first." />
+<meta property="og:title" content="AUTO VISUAL AI" />
+<meta property="og:description" content="Turn talking-head videos into scroll-stopping 9:16 shorts — automatically." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#08080d; --card:rgba(255,255,255,.04); --border:rgba(255,255,255,.10);
+    --fg:#ECECF1; --muted:#9a9ab0; --primary:#8b5cf6; --primary2:#a78bfa; --accent:#27e1a1;
+    --radius:18px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+  /* aurora */
+  .aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;filter:blur(60px);opacity:.55}
+  .blob{position:absolute;width:46vw;height:46vw;border-radius:50%;mix-blend-mode:screen;animation:drift 22s ease-in-out infinite}
+  .b1{background:#7c3aed;top:-12%;left:-8%}
+  .b2{background:#2563eb;top:18%;right:-12%;animation-delay:-7s}
+  .b3{background:#10b981;bottom:-18%;left:24%;animation-delay:-13s;opacity:.6}
+  @keyframes drift{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(4vw,3vh) scale(1.12)}66%{transform:translate(-3vw,-2vh) scale(.94)}}
+  /* nav */
+  nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0}
+  .brand{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:.4px}
+  .logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);display:grid;place-items:center;box-shadow:0 8px 24px rgba(124,58,237,.45)}
+  .logo svg{width:20px;height:20px}
+  .btn{display:inline-flex;align-items:center;gap:9px;padding:11px 18px;border-radius:12px;font-weight:600;font-size:14px;border:1px solid var(--border);transition:.2s;white-space:nowrap}
+  .btn:hover{border-color:var(--primary2);transform:translateY(-1px)}
+  .btn.primary{background:linear-gradient(135deg,#8b5cf6,#6d28d9);border:none;box-shadow:0 10px 30px rgba(124,58,237,.4)}
+  .pill{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--primary2);background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.3);padding:7px 14px;border-radius:999px}
+  /* hero */
+  .hero{display:grid;grid-template-columns:1.15fr .85fr;gap:44px;align-items:center;padding:48px 0 30px}
+  h1{font-size:clamp(34px,5vw,58px);line-height:1.05;font-weight:900;letter-spacing:-1.5px;margin:18px 0 16px}
+  .grad{background:linear-gradient(120deg,#a78bfa,#27e1a1);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{color:var(--muted);font-size:18px;max-width:540px}
+  .cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
+  /* phone mock */
+  .phone{justify-self:center;width:248px;aspect-ratio:9/16;border-radius:30px;border:1px solid var(--border);background:#000;box-shadow:0 30px 80px rgba(0,0,0,.6);overflow:hidden;position:relative}
+  .phone .top{height:54%;background:radial-gradient(120% 120% at 30% 10%,#3b2a6b,#0b1a3a 60%,#06121f);position:relative;overflow:hidden}
+  .phone .top:before{content:"AI VISUAL";position:absolute;top:14px;left:14px;font-size:10px;letter-spacing:2px;color:#8aa0ff;font-weight:700;opacity:.8}
+  .orb{position:absolute;border-radius:50%;filter:blur(2px)}
+  .o1{width:120px;height:120px;background:radial-gradient(circle,#7c5cff,transparent 70%);top:20%;left:30%}
+  .o2{width:80px;height:80px;background:radial-gradient(circle,#27e1a1,transparent 70%);bottom:10%;right:14%;opacity:.8}
+  .phone .face{height:46%;background:linear-gradient(160deg,#2a2a33,#15151b);position:relative}
+  .phone .face:before{content:"";position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#5b5b6b,#23232b)}
+  .phone .face:after{content:"FACECAM";position:absolute;bottom:10px;left:14px;font-size:9px;letter-spacing:2px;color:#6f6f86;font-weight:700}
+  .cap{position:absolute;left:0;right:0;bottom:26%;text-align:center;font-weight:900;font-size:19px;letter-spacing:.3px;text-shadow:0 2px 0 #000,0 0 12px rgba(0,0,0,.7);-webkit-text-stroke:3px #000;paint-order:stroke fill}
+  .cap b{color:#FFE100;display:inline-block;animation:pop 1.6s ease-in-out infinite}
+  @keyframes pop{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+  /* sections */
+  section{padding:46px 0}
+  h2{font-size:28px;font-weight:800;letter-spacing:-.5px;margin:0 0 8px}
+  .sub{color:var(--muted);margin:0 0 26px;max-width:620px}
+  .grid{display:grid;gap:16px}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;backdrop-filter:blur(10px)}
+  .card h3{margin:6px 0 6px;font-size:16px}
+  .card p{margin:0;color:var(--muted);font-size:14px}
+  .ico{width:38px;height:38px;border-radius:11px;background:rgba(139,92,246,.14);display:grid;place-items:center;color:var(--primary2);font-size:19px}
+  .stat{font-size:34px;font-weight:900;background:linear-gradient(120deg,#a78bfa,#27e1a1);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .statlbl{color:var(--muted);font-size:13px}
+  .flow{display:flex;flex-wrap:wrap;gap:8px}
+  .step{font-size:13px;font-weight:600;background:var(--card);border:1px solid var(--border);padding:8px 13px;border-radius:10px;color:#cfcfe0}
+  .step span{color:var(--primary2)}
+  .stack{display:flex;flex-wrap:wrap;gap:9px}
+  .tag{font-size:13px;font-weight:600;padding:8px 13px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.03)}
+  .note{border:1px solid rgba(39,225,161,.3);background:rgba(39,225,161,.07);border-radius:14px;padding:16px 18px;color:#cfe9df;font-size:14.5px}
+  code{background:rgba(255,255,255,.07);border:1px solid var(--border);padding:2px 7px;border-radius:6px;font-size:13px}
+  footer{border-top:1px solid var(--border);margin-top:30px;padding:28px 0;color:var(--muted);font-size:14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px}
+  @media(max-width:860px){.hero{grid-template-columns:1fr;gap:30px}.phone{order:-1}.g3,.g4{grid-template-columns:1fr 1fr}}
+  @media(max-width:560px){.g3,.g4{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="aurora"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+
+<div class="wrap">
+  <nav>
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2l2.6 6.4L21 11l-6.4 2.6L12 20l-2.6-6.4L3 11l6.4-2.6L12 2z" fill="#fff"/></svg></div>
+      AUTO VISUAL AI
+    </div>
+    <a class="btn primary" href="https://github.com/kayaninawazullakhan-prog/auto-visual-ai" target="_blank" rel="noopener">View source on GitHub →</a>
+  </nav>
+
+  <header class="hero">
+    <div>
+      <span class="pill">✦ Production AI SaaS · full-stack TypeScript</span>
+      <h1>Turn talking-head videos into <span class="grad">scroll-stopping shorts</span> — automatically.</h1>
+      <p class="lead">Upload a video in any language. AUTO VISUAL AI transcribes it, understands it, generates word-synced AI visuals, writes animated English captions, and renders a cinema-quality 9:16 cut — with a human-in-the-loop approval step.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/kayaninawazullakhan-prog/auto-visual-ai" target="_blank" rel="noopener">⌥ Explore the code</a>
+        <a class="btn" href="https://github.com/kayaninawazullakhan-prog/auto-visual-ai/blob/main/ARCHITECTURE.md" target="_blank" rel="noopener">Read the architecture</a>
+      </div>
+    </div>
+    <div class="phone" aria-hidden="true">
+      <div class="top"><div class="orb o1"></div><div class="orb o2"></div></div>
+      <div class="face"></div>
+      <div class="cap">AI IS <b>CHANGING</b><br>HEALTHCARE</div>
+    </div>
+  </header>
+
+  <section>
+    <h2>What it does</h2>
+    <p class="sub">A fully automated, 16-step pipeline — every stage runs as an idempotent background job.</p>
+    <div class="flow">
+      <div class="step"><span>01</span> Upload</div>
+      <div class="step"><span>02</span> Extract audio</div>
+      <div class="step"><span>03</span> Transcribe (Whisper)</div>
+      <div class="step"><span>04</span> Word timestamps</div>
+      <div class="step"><span>05</span> Translate → English</div>
+      <div class="step"><span>06</span> Topics & keywords</div>
+      <div class="step"><span>07</span> Visual ideas</div>
+      <div class="step"><span>08</span> Generate images/video</div>
+      <div class="step"><span>09</span> Animated captions</div>
+      <div class="step"><span>10</span> Build timeline</div>
+      <div class="step"><span>11</span> Approve</div>
+      <div class="step"><span>12</span> Render (Remotion)</div>
+      <div class="step"><span>13</span> Quality gate</div>
+      <div class="step"><span>14</span> Export 4K</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Highlights</h2>
+    <p class="sub">Engineered like a real product — not a demo.</p>
+    <div class="grid g3">
+      <div class="card"><div class="ico">🌐</div><h3>Multilingual → English captions</h3><p>Auto-detects any spoken language (Telugu, Hindi, Urdu, Arabic, Spanish…), keeps the original audio, and renders accurate English subtitles.</p></div>
+      <div class="card"><div class="ico">🔑</div><h3>One key, local-first</h3><p>Runs on a single API key (OpenAI or Replicate). Files are stored on local disk by default — no AWS required to run it.</p></div>
+      <div class="card"><div class="ico">✨</div><h3>Word-level animated captions</h3><p>Karaoke / TikTok / Hormozi styles with active-word highlighting, synced to Whisper word timings.</p></div>
+      <div class="card"><div class="ico">🎬</div><h3>Remotion 9:16 compositor</h3><p>AI visuals on top, creator facecam below, captions overlaid — composed in React and rendered to 1080p→4K.</p></div>
+      <div class="card"><div class="ico">✅</div><h3>Human-in-the-loop approval</h3><p>Review and approve / regenerate every generated asset before the final render is built.</p></div>
+      <div class="card"><div class="ico">🧩</div><h3>Swappable AI providers</h3><p>Clean adapters for Whisper, Claude/GPT, Flux/SDXL, Runway/Kling/Pika — pick any with one env var.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>By the numbers</h2>
+    <div class="grid g4">
+      <div class="card"><div class="stat">10</div><div class="statlbl">build phases, foundation → ship</div></div>
+      <div class="card"><div class="stat">25</div><div class="statlbl">REST API routes</div></div>
+      <div class="card"><div class="stat">17</div><div class="statlbl">Prisma data models</div></div>
+      <div class="card"><div class="stat">8</div><div class="statlbl">shared TS packages (monorepo)</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Tech stack</h2>
+    <p class="sub">End-to-end TypeScript, type-safe across a Turborepo monorepo.</p>
+    <div class="stack">
+      <span class="tag">Next.js 15</span><span class="tag">React + TypeScript</span><span class="tag">Tailwind + shadcn/ui</span>
+      <span class="tag">Node.js + BullMQ</span><span class="tag">Prisma · PostgreSQL</span><span class="tag">Redis</span>
+      <span class="tag">Remotion</span><span class="tag">FFmpeg</span><span class="tag">Whisper</span>
+      <span class="tag">Claude / OpenAI</span><span class="tag">Replicate · Flux · SDXL</span><span class="tag">Runway / Kling / Pika</span>
+      <span class="tag">Clerk</span><span class="tag">Stripe</span><span class="tag">AWS S3 (optional)</span>
+      <span class="tag">Turborepo + pnpm</span><span class="tag">Docker</span><span class="tag">GitHub Actions</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Run it yourself</h2>
+    <div class="note">
+      <strong>Local-first — no cloud account needed.</strong><br>
+      <code>git clone</code> → <code>pnpm install</code> → <code>pnpm docker:up</code> (or local Postgres/Redis) → <code>pnpm db:push</code> → <code>pnpm dev</code>, then add a single API key in the Settings page and upload a video. Full instructions in the repo README.
+    </div>
+  </section>
+
+  <footer>
+    <div>AUTO VISUAL AI — built by <strong>Nawaz Ulla Khan Kayani</strong></div>
+    <div>
+      <a href="https://github.com/kayaninawazullakhan-prog/auto-visual-ai" target="_blank" rel="noopener">GitHub repo</a> ·
+      <a href="https://github.com/kayaninawazullakhan-prog/auto-visual-ai/blob/main/ARCHITECTURE.md" target="_blank" rel="noopener">Architecture</a>
+    </div>
+  </footer>
+</div>
+</body>
+</html>
