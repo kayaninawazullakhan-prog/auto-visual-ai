@@ -1,6 +1,6 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { prisma, type User, Plan } from "@ava/db";
-import { getFeatures } from "@ava/config";
+import { getFeatures, loadEnv } from "@ava/config";
 import { unauthorized } from "./api";
 
 export function clerkConfigured(): boolean {
@@ -10,13 +10,15 @@ export function clerkConfigured(): boolean {
 /**
  * Resolve the current user, syncing the Clerk identity into our DB.
  *
- * Dev convenience: if Clerk isn't configured AND we're not in production, fall
- * back to the seeded demo user so the whole pipeline is testable before you add
- * auth keys. In production, missing auth → 401.
+ * When Clerk isn't configured, fall back to the seeded demo user — always in
+ * development, and in production only when DEMO_MODE=true (public portfolio
+ * demos). Otherwise, missing auth in production → 401.
  */
 export async function requireUser(): Promise<User> {
   if (!clerkConfigured()) {
-    if (process.env.NODE_ENV === "production") {
+    const allowDemo =
+      process.env.NODE_ENV !== "production" || loadEnv().DEMO_MODE === "true";
+    if (!allowDemo) {
       throw unauthorized("Authentication is not configured");
     }
     return getDevUser();

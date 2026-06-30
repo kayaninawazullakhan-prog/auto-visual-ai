@@ -15,6 +15,9 @@ const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   APP_URL: z.string().url().default("http://localhost:3000"),
   INTERNAL_API_URL: z.string().url().default("http://localhost:3000"),
+  // Allow the shared demo user in production when Clerk auth isn't configured
+  // (for public portfolio demos). Set to "true" to enable.
+  DEMO_MODE: optionalStr,
 
   // --- Required infrastructure ---
   DATABASE_URL: z.string().url(),
